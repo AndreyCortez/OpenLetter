@@ -1,0 +1,38 @@
+# Binaries for the current project
+*.exe
+*.darwin
+*.linux
+*.windows
+*.freebsd
+*.netbsd
+*.openbsd
+*.plan9
+*.solaris
+*.dragonfly
+*.android
+*.js
+*.wasm
+
+# Build output
+bin/
+pkg/
+
+# Dependency vendor directory (if not using Go modules or explicitly vendoring)
+vendor/
+
+# Test output
+testdata/
+*.test
+*.out
+
+# IDE-specific files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Log files
+*.log
+
+# Environment variables
+.env*
