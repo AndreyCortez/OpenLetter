@@ -21,10 +21,11 @@ jobs:
           script: |
             # Navega para a pasta principal do deploy
             cd /home/ubuntu/AwsDeployAndreyCortez
+            git pull
 
             # Cria o arquivo .env para o backend Go usando os secrets
             # O comando 'cat <<EOF >' é uma forma segura de escrever um arquivo multi-linha
-            cat <<EOF > ./OpenLetterBackend/.env.production
+            cat <<EOF > ../OpenLetter/OpenLetterBackend/.env.production
             GO_ENV=production
             DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
             JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
@@ -32,7 +33,7 @@ jobs:
             EOF
 
             # Cria um arquivo .env separado para o serviço do banco de dados
-            cat <<EOF > ./db.env
+            cat <<EOF > ../OpenLetter/OpenLetterBackend/db/db.env
             POSTGRES_USER=${{ secrets.PROD_POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.PROD_POSTGRES_PASSWORD }}
             POSTGRES_DB=openletters
