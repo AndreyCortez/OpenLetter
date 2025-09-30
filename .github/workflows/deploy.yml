@@ -19,32 +19,35 @@ jobs:
           username: ${{ secrets.AWS_USER }}
           key: ${{ secrets.AWS_SSH_KEY }}
           script: |
-            # Navega para a pasta principal do deploy
-            cd /home/ubuntu/AwsDeployAndreyCortez
-            git pull
+            # Passo 1: Navega para a pasta do projeto e atualiza o código
+            echo "Atualizando o repositório do OpenLetter..."
+            if [ -d "/home/ubuntu/OpenLetter" ] ; then
+              cd /home/ubuntu/OpenLetter
+              git pull origin main
+            else
+              git clone https://github.com/AndreyCortez/OpenLetter.git /home/ubuntu/OpenLetter
+            fi
 
-            # Atualiza o código fonte do OpenLetter (se estiver em outro repo)
-            # Se o docker-compose estiver no mesmo repo do OpenLetter, este passo pode ser diferente
-            cd /home/ubuntu/OpenLetter 
-            git pull origin main
+            # Passo 2: Navega para a pasta do backend e cria os arquivos .env LÁ DENTRO
+            echo "Criando arquivos de configuração no diretório do projeto..."
+            cd /home/ubuntu/OpenLetter/OpenLetterBackend
 
-            # Cria o arquivo .env para o backend Go usando os secrets
-            # O comando 'cat <<EOF >' é uma forma segura de escrever um arquivo multi-linha
-            cat <<EOF > ./OpenLetterBackend/.env.production
+            # Cria o arquivo .env para o backend Go
+            cat <<EOF > ./.env.production
             GO_ENV=production
             DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
             JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
             API_PORT=8080
             EOF
 
-            # Cria um arquivo .env separado para o serviço do banco de dados
-            cat <<EOF > ./OpenLetterBackend/db/db.env
+            # Cria o arquivo .env para o serviço do banco de dados
+            cat <<EOF > ./db.env
             POSTGRES_USER=${{ secrets.PROD_POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.PROD_POSTGRES_PASSWORD }}
             POSTGRES_DB=openletters
             EOF
 
-            # Volta para a pasta do compose e sobe os containers com as novas builds e configs
-            cd /home/ubuntu/AwsDeployAndreyCortez
-            echo "Recriando os containers do OpenLetter..."
+            # Passo 3: Volta para a pasta do Docker Compose e executa o deploy
+            echo "Iniciando o deploy com Docker Compose..."
+            cd /home/ubuntu/AWSDeploy
             docker compose up -d --build --force-recreate --no-deps openletter-db openletter-backend openletter-frontend
