@@ -23,9 +23,14 @@ jobs:
             cd /home/ubuntu/AwsDeployAndreyCortez
             git pull
 
+            # Atualiza o código fonte do OpenLetter (se estiver em outro repo)
+            # Se o docker-compose estiver no mesmo repo do OpenLetter, este passo pode ser diferente
+            cd /home/ubuntu/OpenLetter 
+            git pull origin main
+
             # Cria o arquivo .env para o backend Go usando os secrets
             # O comando 'cat <<EOF >' é uma forma segura de escrever um arquivo multi-linha
-            cat <<EOF > ../OpenLetter/OpenLetterBackend/.env.production
+            cat <<EOF > ./OpenLetterBackend/.env.production
             GO_ENV=production
             DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
             JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
@@ -33,16 +38,11 @@ jobs:
             EOF
 
             # Cria um arquivo .env separado para o serviço do banco de dados
-            cat <<EOF > ../OpenLetter/OpenLetterBackend/db/db.env
+            cat <<EOF > ./OpenLetterBackend/db/db.env
             POSTGRES_USER=${{ secrets.PROD_POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.PROD_POSTGRES_PASSWORD }}
             POSTGRES_DB=openletters
             EOF
-
-            # Atualiza o código fonte do OpenLetter (se estiver em outro repo)
-            # Se o docker-compose estiver no mesmo repo do OpenLetter, este passo pode ser diferente
-            cd /home/ubuntu/OpenLetter 
-            git pull origin main
 
             # Volta para a pasta do compose e sobe os containers com as novas builds e configs
             cd /home/ubuntu/AwsDeployAndreyCortez
