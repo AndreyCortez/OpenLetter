@@ -1,15 +1,40 @@
 // src/pages/WritePage.jsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import apiClient from '../api/axios';
+import { jwtDecode } from 'jwt-decode';
 
 export default function WritePage() {
-  // Simula o email do usuário logado. Em uma aplicação real, viria do contexto de autenticação.
-  const loggedInUserEmail = "helena.gomes@email.com";
-
   const [formData, setFormData] = useState({
     recipient: '',
     subject: '',
     body: '',
   });
+  const [loggedInUserEmail, setLoggedInUserEmail] = useState(null);
+  const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const navigate = useNavigate();
+
+  // Efeito para verificar a autenticação e buscar o email do usuário
+  useEffect(() => {
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      // Se não há token, redireciona para o login
+      navigate('/login');
+      return;
+    }
+
+    try {
+      // Se há token, decodifica para pegar o email
+      const decodedToken = jwtDecode(token);
+      setLoggedInUserEmail(decodedToken.email);
+    } catch (error) {
+      console.error("Token inválido:", error);
+      // Se o token for inválido, limpa e redireciona
+      localStorage.removeItem('authToken');
+      navigate('/login');
+    }
+  }, [navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -19,35 +44,47 @@ export default function WritePage() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Monta o objeto final da carta
-    const letter = {
-      sender: loggedInUserEmail,
-      recipient: formData.recipient,
-      subject: formData.subject,
-      body: formData.body,
-    };
-    
-    console.log("Enviando carta:", letter);
-    // Aqui você fará a chamada para a sua API backend para enviar e salvar a carta.
-    // Ex: await axios.post('/api/letters', letter);
-    alert('Carta enviada! (Verifique o console para ver os dados)');
-    
-    // Limpa o formulário após o envio
-    setFormData({ recipient: '', subject: '', body: '' });
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const payload = {
+        recipient: formData.recipient,
+        subject: formData.subject,
+        body: formData.body,
+      };
+      
+      await apiClient.post('/letters', payload);
+      
+      alert('Carta enviada com sucesso!');
+      navigate('/'); // Redireciona para a página inicial após o envio
+      
+    } catch (err) {
+      console.error("Erro ao criar carta:", err);
+      if (err.response && err.response.data && err.response.data.error) {
+        setError(err.response.data.error); // Mostra o erro da API (ex: cooldown)
+      } else {
+        setError('Ocorreu um erro ao enviar a carta. Verifique sua conexão.');
+      }
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  // Estilo base para os campos de input e textarea
   const inputStyle = "w-full p-2 border border-slate-300 bg-white focus:outline-none focus:border-slate-500";
-  const disabledInputStyle = "w-full p-2 border border-slate-200 bg-slate-100 text-slate-500";
+  const disabledInputStyle = "w-full p-2 border border-slate-200 bg-slate-100";
 
+  // Não renderiza o formulário até que o email do usuário seja carregado
+  if (!loggedInUserEmail) {
+    return <p className="max-w-4xl mx-auto">Verificando autenticação...</p>;
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
-      <h1 className="mb-4">Escrever Nova Carta</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* Campo Remetente (Não editável) */}
+      <h1>Escrever Nova Carta</h1>
+      <form onSubmit={handleSubmit} className="space-y-4 mt-4">
         <div>
           <label htmlFor="sender" className="block mb-1">Remetente</label>
           <input
@@ -60,7 +97,6 @@ export default function WritePage() {
           />
         </div>
         
-        {/* Campo Destinatário */}
         <div>
           <label htmlFor="recipient" className="block mb-1">Destinatário</label>
           <input
@@ -75,7 +111,6 @@ export default function WritePage() {
           />
         </div>
 
-        {/* Campo Título */}
         <div>
           <label htmlFor="subject" className="block mb-1">Título</label>
           <input
@@ -90,7 +125,6 @@ export default function WritePage() {
           />
         </div>
 
-        {/* Campo Corpo */}
         <div>
           <label htmlFor="body" className="block mb-1">Corpo</label>
           <textarea
@@ -104,14 +138,16 @@ export default function WritePage() {
             placeholder="Escreva sua carta aqui..."
           />
         </div>
+        
+        {error && <p className="text-red-600 text-sm">{error}</p>}
 
-        {/* Botão de Envio */}
         <div>
           <button 
             type="submit" 
             className="underline hover:bg-slate-200 p-2"
+            disabled={isLoading}
           >
-            > Enviar Carta
+            {isLoading ? 'Enviando...' : '> Enviar Carta'}
           </button>
         </div>
       </form>

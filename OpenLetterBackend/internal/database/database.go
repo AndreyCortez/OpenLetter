@@ -16,7 +16,6 @@ func Connect(dbURL string) *pgxpool.Pool {
 		os.Exit(1)
 	}
 
-	// Testa a conexão
 	if err := pool.Ping(context.Background()); err != nil {
 		log.Fatalf("Não foi possível pingar o banco de dados: %v\n", err)
 		os.Exit(1)

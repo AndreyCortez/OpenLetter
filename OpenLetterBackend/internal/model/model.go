@@ -15,7 +15,6 @@ type Letter struct {
 	CreatedAt      time.Time `json:"created_at"`
 }
 
-
 type LetterWithSignatureCount struct {
 	ID             uuid.UUID `json:"id"`
 	SenderID       uuid.UUID `json:"sender_id"`
@@ -42,4 +41,10 @@ type User struct {
 	ID           uuid.UUID
 	Email        string
 	PasswordHash string
+}
+
+type CreateLetterInput struct {
+	RecipientEmail string `json:"recipient" binding:"required,email"`
+	Subject        string `json:"subject" binding:"required"`
+	Body           string `json:"body" binding:"required"`
 }

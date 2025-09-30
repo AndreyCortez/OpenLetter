@@ -1,4 +1,3 @@
-// internal/handler/letter_handler.go
 package handler
 
 import (
@@ -9,8 +8,10 @@ import (
 	"net/http"
 	"strings"
 	"time"
+    "database/sql" 
 
-	"openletters.api/v2/internal/model" // Certifique-se que o nome do módulo está correto
+
+	"openletters.api/v2/internal/model"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
@@ -18,23 +19,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// SearchLetters busca cartas com base em filtros de texto, datas customizáveis e ordenação.
-// Serve como o handler principal para a rota GET /letters.
 func SearchLetters(dbpool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// 1. Obter parâmetros da URL
 		field := c.Query("field")
 		query := c.Query("query")
 		sortOrder := c.DefaultQuery("sortOrder", "desc")
 		startDate := c.Query("startDate")
 		endDate := c.Query("endDate")
 
-		// 2. Validar parâmetros
 		if strings.ToLower(sortOrder) != "asc" && strings.ToLower(sortOrder) != "desc" {
 			sortOrder = "desc"
 		}
 
-		// 3. Montar a query SQL dinamicamente
 		sqlQuery := `
 			SELECT
 				l.id, l.sender_id, l.recipient_email, l.subject, l.body, l.created_at,
@@ -48,7 +44,6 @@ func SearchLetters(dbpool *pgxpool.Pool) gin.HandlerFunc {
 		whereClauses := []string{}
 		paramIndex := 1
 
-		// Adiciona filtro de data de início, se for uma data válida
 		if startDate != "" {
 			if _, err := time.Parse("2006-01-02", startDate); err == nil {
 				whereClauses = append(whereClauses, fmt.Sprintf("DATE(l.created_at) >= $%d", paramIndex))
@@ -57,7 +52,6 @@ func SearchLetters(dbpool *pgxpool.Pool) gin.HandlerFunc {
 			}
 		}
 
-		// Adiciona filtro de data de fim, se for uma data válida
 		if endDate != "" {
 			if _, err := time.Parse("2006-01-02", endDate); err == nil {
 				whereClauses = append(whereClauses, fmt.Sprintf("DATE(l.created_at) <= $%d", paramIndex))
@@ -66,7 +60,6 @@ func SearchLetters(dbpool *pgxpool.Pool) gin.HandlerFunc {
 			}
 		}
 
-		// Adiciona filtro de busca textual, se especificado
 		if query != "" && field != "" {
 			allowedFields := map[string]string{
 				"subject": "l.subject",
@@ -88,26 +81,22 @@ func SearchLetters(dbpool *pgxpool.Pool) gin.HandlerFunc {
 			}
 		}
 
-		// Constrói a cláusula WHERE final
 		if len(whereClauses) > 0 {
 			sqlQuery += " WHERE " + strings.Join(whereClauses, " AND ")
 		}
 
-		// Adiciona o restante da query
 		sqlQuery += " GROUP BY l.id, u.id"
 		sqlQuery += fmt.Sprintf(" ORDER BY signature_count %s, l.created_at DESC", strings.ToUpper(sortOrder))
 		sqlQuery += " LIMIT 100;"
 
-		// 4. Executar a query
 		rows, err := dbpool.Query(context.Background(), sqlQuery, args...)
 		if err != nil {
-			log.Printf("Erro ao executar a query: %v\n", err) // Log do erro para depuração
+			log.Printf("Erro ao executar a query: %v\n", err) 
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao executar a busca"})
 			return
 		}
 		defer rows.Close()
 
-		// 5. Escanear os resultados
 		letters := make([]model.LetterWithSignatureCount, 0)
 		for rows.Next() {
 			var letter model.LetterWithSignatureCount
@@ -117,7 +106,7 @@ func SearchLetters(dbpool *pgxpool.Pool) gin.HandlerFunc {
 				&letter.SenderEmail,
 				&letter.SignatureCount,
 			); err != nil {
-				log.Printf("Erro ao escanear a linha: %v\n", err) // Log do erro para depuração
+				log.Printf("Erro ao escanear a linha: %v\n", err) 
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao processar dados da carta"})
 				return
 			}
@@ -128,7 +117,6 @@ func SearchLetters(dbpool *pgxpool.Pool) gin.HandlerFunc {
 	}
 }
 
-// GetLetterByID busca uma única carta pelo seu UUID.
 func GetLetterByID(dbpool *pgxpool.Pool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		idStr := c.Param("id")
@@ -169,7 +157,7 @@ func GetLetterByID(dbpool *pgxpool.Pool) gin.HandlerFunc {
 				c.JSON(http.StatusNotFound, gin.H{"error": "Carta não encontrada"})
 				return
 			}
-			log.Printf("Erro ao buscar a carta: %v", err) // Log para depuração
+			log.Printf("Erro ao buscar a carta: %v", err)
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao buscar a carta"})
 			return
 		}
@@ -210,10 +198,8 @@ func ToggleSignature(dbpool *pgxpool.Pool) gin.HandlerFunc {
 		}
 		
 		if isSigned {
-			// Retirar assinatura
 			_, err = tx.Exec(context.Background(), "DELETE FROM signatures WHERE user_id = $1 AND letter_id = $2", userID, letterID)
 		} else {
-			// Adicionar assinatura
 			_, err = tx.Exec(context.Background(), "INSERT INTO signatures (user_id, letter_id) VALUES ($1, $2)", userID, letterID)
 		}
 		if err != nil {
@@ -239,4 +225,73 @@ func ToggleSignature(dbpool *pgxpool.Pool) gin.HandlerFunc {
 		})
 	}
 
+}
+
+func CreateLetter(dbpool *pgxpool.Pool) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userIDstr, exists := c.Get("userID")
+		if !exists {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Usuário não autenticado"})
+			return
+		}
+		userID, _ := uuid.Parse(userIDstr.(string))
+
+		var input model.CreateLetterInput
+		if err := c.ShouldBindJSON(&input); err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Dados da carta inválidos: " + err.Error()})
+			return
+		}
+
+		tx, err := dbpool.Begin(context.Background())
+		if err != nil {
+			log.Printf("Erro ao iniciar transação: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro interno do servidor"})
+			return
+		}
+		defer tx.Rollback(context.Background())
+
+		var lastSent sql.NullTime
+		err = tx.QueryRow(context.Background(), "SELECT last_letter_sent_at FROM users WHERE id = $1 FOR UPDATE", userID).Scan(&lastSent)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao verificar usuário"})
+			return
+		}
+
+		if lastSent.Valid && time.Since(lastSent.Time) < time.Minute*1 {
+			remaining := (time.Minute*1 - time.Since(lastSent.Time)).Seconds()
+			c.JSON(http.StatusTooManyRequests, gin.H{"error": fmt.Sprintf("Aguarde mais %.0f segundos para enviar outra carta.", remaining)})
+			return
+		}
+
+		var newLetter model.Letter
+		insertQuery := `
+			INSERT INTO letters (sender_id, recipient_email, subject, body)
+			VALUES ($1, $2, $3, $4)
+			RETURNING id, sender_id, recipient_email, subject, body, created_at;
+		`
+		err = tx.QueryRow(context.Background(), insertQuery, userID, input.RecipientEmail, input.Subject, input.Body).Scan(
+			&newLetter.ID, &newLetter.SenderID, &newLetter.RecipientEmail,
+			&newLetter.Subject, &newLetter.Body, &newLetter.CreatedAt,
+		)
+		if err != nil {
+			log.Printf("Erro ao inserir carta: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Não foi possível salvar a carta"})
+			return
+		}
+
+		_, err = tx.Exec(context.Background(), "UPDATE users SET last_letter_sent_at = NOW() WHERE id = $1", userID)
+		if err != nil {
+			log.Printf("Erro ao atualizar o usuário: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Não foi possível atualizar o status do usuário"})
+			return
+		}
+
+		if err := tx.Commit(context.Background()); err != nil {
+			log.Printf("Erro ao comitar transação: %v", err)
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Erro ao finalizar a operação"})
+			return
+		}
+
+		c.JSON(http.StatusCreated, newLetter)
+	}
 }

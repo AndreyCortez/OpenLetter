@@ -1,4 +1,3 @@
-// cmd/api/main.go
 package main
 
 import (
@@ -50,8 +49,10 @@ func main() {
 		authorized := api.Group("/")
         authorized.Use(middleware.AuthMiddleware())
         {
-            // Adicione aqui outras rotas que precisam de login, como criar carta
+			authorized.POST("/letters", handler.CreateLetter(dbpool))
+            
             authorized.POST("/letters/:id/toggle-signature", handler.ToggleSignature(dbpool))
+        
         }
 	}
 

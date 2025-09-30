@@ -1,4 +1,3 @@
-// internal/config/config.go
 package config
 
 import (
@@ -8,7 +7,6 @@ import (
 	"github.com/joho/godotenv"
 )
 
-// LoadConfig carrega as variáveis de ambiente do arquivo .env apropriado.
 func LoadConfig() {
 	env := os.Getenv("GO_ENV")
 	if env == "" {
@@ -23,12 +21,10 @@ func LoadConfig() {
 	log.Printf("Configuração para o ambiente '%s' carregada.", env)
 }
 
-// GetDBURL retorna a string de conexão com o banco de dados.
 func GetDBURL() string {
 	return os.Getenv("DATABASE_URL")
 }
 
-// GetAPIPort retorna a porta em que a API deve rodar.
 func GetAPIPort() string {
 	port := os.Getenv("API_PORT")
 	if port == "" {
