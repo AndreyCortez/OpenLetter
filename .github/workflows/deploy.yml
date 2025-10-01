@@ -19,7 +19,7 @@ jobs:
           username: ${{ secrets.AWS_USER }}
           key: ${{ secrets.AWS_SSH_KEY }}
           script: |
-            # Ativa o modo de depuração do shell, que imprime cada comando antes de executá-lo
+            # Ativa o modo de depuração para vermos cada comando
             set -x
 
             # Passo 1: Atualiza o repositório
@@ -31,29 +31,21 @@ jobs:
               git clone https://github.com/AndreyCortez/OpenLetter.git /home/ubuntu/OpenLetter
             fi
 
-            # Passo 2: Cria os arquivos .env no local correto
+            # Passo 2: Cria os arquivos .env no local correto usando 'echo'
             echo "--- Criando arquivos de configuração ---"
             cd /home/ubuntu/OpenLetter/OpenLetterBackend
-            
-            # Mostra o diretório atual para confirmar que estamos no lugar certo
             pwd
 
-            # Cria o arquivo .env para o backend Go
-            # A MUDANÇA PRINCIPAL: Usar 'EOF' entre aspas simples impede que o shell 
-            # interprete caracteres especiais como $ dentro do bloco.
-            cat <<'EOF' > ./.env.production
-            GO_ENV=production
-            DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
-            JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
-            API_PORT=8080
-            EOF
+            # Cria o arquivo .env.production para o backend
+            echo "GO_ENV=production" > ./.env.production
+            echo "DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}" >> ./.env.production
+            echo "JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}" >> ./.env.production
+            echo "API_PORT=8080" >> ./.env.production
 
-            # Cria o arquivo .env para o serviço do banco de dados
-            cat <<'EOF' > ./db.env
-            POSTGRES_USER=${{ secrets.PROD_POSTGRES_USER }}
-            POSTGRES_PASSWORD=${{ secrets.PROD_POSTGRES_PASSWORD }}
-            POSTGRES_DB=openletters
-            EOF
+            # Cria o arquivo db.env para o banco de dados
+            echo "POSTGRES_USER=${{ secrets.PROD_POSTGRES_USER }}" > ./db.env
+            echo "POSTGRES_PASSWORD=${{ secrets.PROD_POSTGRES_PASSWORD }}" >> ./db.env
+            echo "POSTGRES_DB=openletters" >> ./db.env
 
             # Lista os arquivos para confirmar que foram criados
             echo "--- Verificando arquivos criados ---"
