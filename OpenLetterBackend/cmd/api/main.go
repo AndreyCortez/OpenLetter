@@ -33,7 +33,7 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	api := router.Group("/api/v2")
+	api := router.Group("/openletter-api/v2")
 	{
 		api.GET("/ping", func(c *gin.Context) {
 			c.JSON(200, gin.H{"message": "pong"})
