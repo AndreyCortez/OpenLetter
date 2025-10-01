@@ -61,5 +61,5 @@ jobs:
 
             # Passo 3: Executa o Docker Compose
             echo "--- Iniciando o deploy com Docker Compose ---"
-            cd /home/ubuntu/AWSDeploy
+            cd /home/ubuntu/AwsDeployAndreyCortez
             docker compose up -d --build --force-recreate --no-deps openletter-db openletter-backend openletter-frontend
