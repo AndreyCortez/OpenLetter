@@ -19,8 +19,11 @@ jobs:
           username: ${{ secrets.AWS_USER }}
           key: ${{ secrets.AWS_SSH_KEY }}
           script: |
-            # Passo 1: Navega para a pasta do projeto e atualiza o código
-            echo "Atualizando o repositório do OpenLetter..."
+            # Ativa o modo de depuração do shell, que imprime cada comando antes de executá-lo
+            set -x
+
+            # Passo 1: Atualiza o repositório
+            echo "--- Atualizando o repositório ---"
             if [ -d "/home/ubuntu/OpenLetter" ] ; then
               cd /home/ubuntu/OpenLetter
               git pull origin main
@@ -28,12 +31,17 @@ jobs:
               git clone https://github.com/AndreyCortez/OpenLetter.git /home/ubuntu/OpenLetter
             fi
 
-            # Passo 2: Navega para a pasta do backend DENTRO do projeto e cria os arquivos .env
-            echo "Criando arquivos de configuração no diretório do projeto..."
+            # Passo 2: Cria os arquivos .env no local correto
+            echo "--- Criando arquivos de configuração ---"
             cd /home/ubuntu/OpenLetter/OpenLetterBackend
+            
+            # Mostra o diretório atual para confirmar que estamos no lugar certo
+            pwd
 
             # Cria o arquivo .env para o backend Go
-            cat <<EOF > ./.env.production
+            # A MUDANÇA PRINCIPAL: Usar 'EOF' entre aspas simples impede que o shell 
+            # interprete caracteres especiais como $ dentro do bloco.
+            cat <<'EOF' > ./.env.production
             GO_ENV=production
             DATABASE_URL=${{ secrets.PROD_DATABASE_URL }}
             JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
@@ -41,13 +49,17 @@ jobs:
             EOF
 
             # Cria o arquivo .env para o serviço do banco de dados
-            cat <<EOF > ./db.env
+            cat <<'EOF' > ./db.env
             POSTGRES_USER=${{ secrets.PROD_POSTGRES_USER }}
             POSTGRES_PASSWORD=${{ secrets.PROD_POSTGRES_PASSWORD }}
             POSTGRES_DB=openletters
             EOF
 
-            # Passo 3: Volta para a pasta do Docker Compose e executa o deploy
-            echo "Iniciando o deploy com Docker Compose..."
-            cd /home/ubuntu/AwsDeployAndreyCortez
+            # Lista os arquivos para confirmar que foram criados
+            echo "--- Verificando arquivos criados ---"
+            ls -la
+
+            # Passo 3: Executa o Docker Compose
+            echo "--- Iniciando o deploy com Docker Compose ---"
+            cd /home/ubuntu/AWSDeploy
             docker compose up -d --build --force-recreate --no-deps openletter-db openletter-backend openletter-frontend
