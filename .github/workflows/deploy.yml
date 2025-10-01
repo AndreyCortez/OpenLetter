@@ -28,7 +28,7 @@ jobs:
               git clone https://github.com/AndreyCortez/OpenLetter.git /home/ubuntu/OpenLetter
             fi
 
-            # Passo 2: Navega para a pasta do backend e cria os arquivos .env LÁ DENTRO
+            # Passo 2: Navega para a pasta do backend DENTRO do projeto e cria os arquivos .env
             echo "Criando arquivos de configuração no diretório do projeto..."
             cd /home/ubuntu/OpenLetter/OpenLetterBackend
 
@@ -49,5 +49,5 @@ jobs:
 
             # Passo 3: Volta para a pasta do Docker Compose e executa o deploy
             echo "Iniciando o deploy com Docker Compose..."
-            cd /home/ubuntu/AwsDeployAndreyCortez
+            cd /home/ubuntu/AWSDeploy
             docker compose up -d --build --force-recreate --no-deps openletter-db openletter-backend openletter-frontend
